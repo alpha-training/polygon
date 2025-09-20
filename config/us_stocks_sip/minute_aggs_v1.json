@@ -1,0 +1,6 @@
+{
+  "table_name": "bar1m",
+  "headers": ["sym","volume","open","close","high","low", "time","transactions"],
+  "types": "sjffffji",
+  "post_process" : "{`time xcols update time:12h$time-.cfg.EPOCH_OFFSET from x}"
+}
