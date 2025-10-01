@@ -1,0 +1,11 @@
+{
+"BAND_PERIOD": 20,
+"BAND_K": 2.0,
+"RSI_ENTRY_MAX": 30,
+"VOL_MIN": 10000,
+"TP": 0.005,
+"SL": -0.004,
+"EOD": "15:55",
+"k": 10000,
+"MAX_LEV": 2.0
+}
