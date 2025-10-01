@@ -25,10 +25,12 @@ getBBands1:{[d;s] /getBBands1[2025.09.01 2025.09.05;`JPM`GE`IBM]
   a:update lowerBand:midBand-2*mdev[7h$CFG`BAND_PERIOD;close] by K from a;
   a:update rsi5:getRSI[close;5] by K from a;
   a:update enterLong:`boolean$((0^close<lowerBand) and (0^rsi5<CFG`RSI_ENTRY_MAX) and (0^volume>CFG`VOL_MIN)) from a;
-  a:update entryPrice:close*enterLong from a;
+  a:update entryPrice:close from a where enterLong=1; a:update entryPrice:fills entryPrice from a;
+  a:update uPNL:(close-entryPrice)%entryPrice from a;
+  a:update exitLong:`boolean$((0^close>midBand) or (0^uPNL>CFG`TP) or (0^uPNL<CFG`SL) or (0^time>"V"$CFG`EOD)) from a;
   a}
 
-getBB:{[tm;s] / Calculate Bollinger Bands for symbols 's' over time range 'tm', over 'n' periods
+getBB:{[tm;s] / Calculate Bollinger Bandas for symbols 's' over time range 'tm', over 'n' periods
     tab:select from T where sym in s, time within tm;
     typicalPrice:avg(tab`high;tab`low;tab`close);
     simMovAvg:mavg[7h$CFG`BAND_PERIOD;typicalPrice];
@@ -41,7 +43,7 @@ getBB:{[tm;s] / Calculate Bollinger Bands for symbols 's' over time range 'tm', 
 
 
 \l /data/pmorris/polygon/hdb/us_stocks_sip/
-getBBands1[2025.09.01 2025.09.30;`JPM`GE`IBM]
+testTable:getBBands1[2025.09.01 2025.09.30;`JPM`GE`IBM]
 a:select from T where date within 2025.09.01 2025.09.30,sym in `JPM`GE`IBM;
 
 enterLong
