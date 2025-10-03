@@ -5,13 +5,14 @@ T:`bar1m
 CFG:.j.k trim raze read0`:config/bbands1.json
 
 getMidBand:{[x] mavg[7h$CFG`BAND_PERIOD;x]}
+
 getRSI:{[close;period]
     diff:close - prev close;
     gain:diff*(diff>0f);loss:diff*(diff<0)*-1;
     smooth:{[vals;period]
         n:period; 
         seed:avg vals[1+til n];
-        (n#0Nf),seed,{(y+x*(z-1))%z}\[(sum n#vals)%14;15_vals;n]};    
+        (n#0Nf),seed,{(y+x*(z-1))%z}\[(sum n#vals)%n;(n+1)_vals;n]};    
     rs:(smooth[gain;period])%(smooth[loss;period]);
     rsi:?[(smooth [loss;period])=0;100;100*rs%(1+rs)]}
 
@@ -26,7 +27,10 @@ getBBands1:{[d;s] /getBBands1[2025.09.01 2025.09.05;`JPM`GE`IBM]
   a:update rsi5:getRSI[close;5] by K from a;
   a:update enterLong:`boolean$((0^close<lowerBand) and (0^rsi5<CFG`RSI_ENTRY_MAX) and (0^volume>CFG`VOL_MIN)) from a;
   a:update entryPrice:close from a where enterLong=1; a:update entryPrice:fills entryPrice from a;
-  a:update uPNL:(close-entryPrice)%entryPrice from a;
+  /a:update tr:max each flip (close-prev close;high-low;abs high-prev close) by K from a;
+  /a:update atr14:mavg[14h;tr] by K from a;
+  /a:update posSize:min[(CFG`k)%atr14;CFG`MAX_LEV] from a;
+  a:update uPNL:((close-entryPrice)%entryPrice) by K from a;
   a:update exitLong:`boolean$((0^close>midBand) or (0^uPNL>CFG`TP) or (0^uPNL<CFG`SL) or (0^time>"V"$CFG`EOD)) from a;
   a}
 
@@ -40,11 +44,11 @@ getBB:{[tm;s] / Calculate Bollinger Bandas for symbols 's' over time range 'tm',
     tab:update upperBand:upperBand, lowerBand:lowerBand from tab}
 
 /
-
-
 \l /data/pmorris/polygon/hdb/us_stocks_sip/
 testTable:getBBands1[2025.09.01 2025.09.30;`JPM`GE`IBM]
 a:select from T where date within 2025.09.01 2025.09.30,sym in `JPM`GE`IBM;
+
+TOY SYSTEM: bar1m:select from bar1m where date=2025.01.03,sym=`A
 
 enterLong
  close < lowerBand20, rsi5 < RSI_ENTRY_MAX, volume > VOL_MIN
@@ -58,14 +62,4 @@ exitLong
 positionSize
  k / ATR14 capped at MAX_LEV
 
-getRSIold:{[tm;s] / Calculate RSI for symbols 's' over time range 'tm' e.g. getRSI[2022.01.20 2022.01.22;`AAPL`JPM] 
-    tab:select from T where sym in s, time within tm; 
-    tab: update diff:close - prev close by sym from tab; 
-    tab: update gain:diff*(diff>0f), loss:(neg diff)*(diff<0f) by sym from tab; 
-    smooth:{[vals;n] seed:avg vals[1+til n]; result:(n#0Nf),seed,(n+1) _ (seed + vals[n+1 + til count vals - n-1]*(n-1)) % n;result};
-    n:5; 
-    tab:update avgGain: smooth[gain;n], avgLoss: smooth[loss;n] by sym from tab; 
-    tab:update rs: avgGain % avgLoss from tab;
-    tab:update RSI: 100 - (100 % (1 + rs)) from tab;
-    tab:delete diff,gain,loss,avgGain,avgLoss,rs from tab; 
-    tab}
+
