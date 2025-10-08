@@ -16,8 +16,6 @@ getRSI:{[close;period]
     rs:(smooth[gain;period])%(smooth[loss;period]);
     rsi:?[(smooth [loss;period])=0;100;100*rs%(1+rs)]}
 
-/ add more intermediary functions here
-
 getBBands1:{[d;s] /getBBands1[2025.09.01 2025.09.05;`JPM`GE`IBM]
   a:select from T where date within d,sym in s;
   a:update K:first i by date,sym from a;  / useful to have a unique index
@@ -26,13 +24,31 @@ getBBands1:{[d;s] /getBBands1[2025.09.01 2025.09.05;`JPM`GE`IBM]
   a:update lowerBand:midBand-2*mdev[7h$CFG`BAND_PERIOD;close] by K from a;
   a:update rsi5:getRSI[close;5] by K from a;
   a:update enterLong:`boolean$((0^close<lowerBand) and (0^rsi5<CFG`RSI_ENTRY_MAX) and (0^volume>CFG`VOL_MIN)) from a;
-  a:update entryPrice:close from a where enterLong=1; a:update entryPrice:fills entryPrice from a;
+  a:update entryPrice:open from a where prev enterLong=1; a:update entryPrice:fills entryPrice by K from a;
   /a:update tr:max each flip (close-prev close;high-low;abs high-prev close) by K from a;
   /a:update atr14:mavg[14h;tr] by K from a;
   /a:update posSize:min[(CFG`k)%atr14;CFG`MAX_LEV] from a;
   a:update uPNL:((close-entryPrice)%entryPrice) by K from a;
   a:update exitLong:`boolean$((0^close>midBand) or (0^uPNL>CFG`TP) or (0^uPNL<CFG`SL) or (0^time>"V"$CFG`EOD)) from a;
+  a:((cols a) except `enterLong`exitLong) xcols a;
   a}
+
+simulate:{[d;s] /simulate[2025.09.01 2025.09.05;`JPM`GE`IBM]
+  tbl:getBBands1[d;s];
+  tbl:update pos:0b, pnl:0f, entry:0n from tbl;
+  {
+    if[(x`enterLong)&(not x`pos); / enter long
+        x`pos: 1b;
+        x`entry: x`entryPrice;
+        ];
+    if[(x`exitLong)&(x`pos); / exit long
+        x`pos: 0b;
+        x`pnl:(x`close - x`entry)/x`entry;
+        x`entry: 0n;
+        ];
+    x
+   }each select from tbl; 
+  tbl}
 
 getBB:{[tm;s] / Calculate Bollinger Bandas for symbols 's' over time range 'tm', over 'n' periods
     tab:select from T where sym in s, time within tm;
@@ -43,12 +59,28 @@ getBB:{[tm;s] / Calculate Bollinger Bandas for symbols 's' over time range 'tm',
     lowerBand:simMovAvg-stdDev*7h$CFG`BAND_K;
     tab:update upperBand:upperBand, lowerBand:lowerBand from tab}
 
+toyEvent:{[tab;row]
+    n:(20?-1 1)*(20?5.0);
+    seed:tab[row;`close];
+    tab[row;`volume]:20000;
+    tab[row+til 5;`close]:(0.6+0.05*til 5)*seed+5?n;
+    tab[row+til 5;`high]:(0.6+0.05*til 5)*seed+max n;
+    tab[row+til 5;`low]:(0.6+0.05*til 5)*seed+min n;
+    tab[row+1+til 4;`open]:tab[row+til 4;`close]*(1+(4?-1 1)*4?0.1);tab}
+    
+
 /
 \l /data/pmorris/polygon/hdb/us_stocks_sip/
 testTable:getBBands1[2025.09.01 2025.09.30;`JPM`GE`IBM]
 a:select from T where date within 2025.09.01 2025.09.30,sym in `JPM`GE`IBM;
 
-TOY SYSTEM: bar1m:select from bar1m where date=2025.01.03,sym=`A
+TOY SYSTEM:
+\l /data/pmorris/polygon/hdb/us_stocks_sip/ 
+bar1m:select from bar1m where date within 2025.01.02 2025.01.03,sym=`A
+bar1m:toyEvent[bar1m;15]
+tt:getBBands1[2025.01.02 2025.01.03;`A]
+simulate[2025.01.02 2025.01.03;`A]
+
 
 enterLong
  close < lowerBand20, rsi5 < RSI_ENTRY_MAX, volume > VOL_MIN
