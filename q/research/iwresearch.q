@@ -29,7 +29,7 @@ bbsimplestrat:{[tr;Tsym]
     update portfolio_return:pos*return from `strat1; /add in portfolio return
     update equity:prds 1+pos*return from `strat1; / accumalted portfolio return
     update dd:(equity-((|\)equity))% ((|\)equity) from `strat1; / adding in rolling max drawdown; given by (current acc return-max acc return)%max acc return
-    stratacc_return::select equity from -1#strat1; /final entry in acc return column
+    stratacc_return:select equity from -1#strat1; /final entry in acc return column
     sharpe_ratio:((avg pr)%sdev pr:select portfolio_return from strat1)*sqrt 98280; /annualised sharpe ratio, minute bars 98280 amount of minutes in trading year
-    (`Sharpe_Ratio`Portfolio_Return`max_drawdown)!(first raze sharpe_ratio;first raze stratacc_return;min strat1`dd) /show acc return and sharpe ratio and max dd
+    (`Sharpe_Ratio`Portfolio_Return`variance`max_drawdown)!(first raze sharpe_ratio;first raze stratacc_return;first sdev pr;min strat1`dd) /show acc return and sharpe ratio and max dd
     }
