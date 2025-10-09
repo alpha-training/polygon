@@ -24,30 +24,20 @@ getBBands1:{[d;s] /getBBands1[2025.09.01 2025.09.05;`JPM`GE`IBM]
   a:update lowerBand:midBand-2*mdev[7h$CFG`BAND_PERIOD;close] by K from a;
   a:update rsi5:getRSI[close;5] by K from a;
   a:update enterLong:`boolean$((0^close<lowerBand) and (0^rsi5<CFG`RSI_ENTRY_MAX) and (0^volume>CFG`VOL_MIN)) from a;
+  a:update enterLong:enterLong and not prev enterLong from a; / only enter on first signal
   a:update entryPrice:open from a where prev enterLong=1; a:update entryPrice:fills entryPrice by K from a;
   /a:update tr:max each flip (close-prev close;high-low;abs high-prev close) by K from a;
   /a:update atr14:mavg[14h;tr] by K from a;
   /a:update posSize:min[(CFG`k)%atr14;CFG`MAX_LEV] from a;
   a:update uPNL:((close-entryPrice)%entryPrice) by K from a;
   a:update exitLong:`boolean$((0^close>midBand) or (0^uPNL>CFG`TP) or (0^uPNL<CFG`SL) or (0^time>"V"$CFG`EOD)) from a;
+  a:update exitLong:exitLong and not prev exitLong from a; / only exit on first signal
   a:((cols a) except `enterLong`exitLong) xcols a;
   a}
 
 simulate:{[d;s] /simulate[2025.09.01 2025.09.05;`JPM`GE`IBM]
   tbl:getBBands1[d;s];
-  tbl:update pos:0b, pnl:0f, entry:0n from tbl;
-  {
-    if[(x`enterLong)&(not x`pos); / enter long
-        x`pos: 1b;
-        x`entry: x`entryPrice;
-        ];
-    if[(x`exitLong)&(x`pos); / exit long
-        x`pos: 0b;
-        x`pnl:(x`close - x`entry)/x`entry;
-        x`entry: 0n;
-        ];
-    x
-   }each select from tbl; 
+  tbl:update pos:(prev tbl`enterLong)&(not tbl`exitLong) by K from tbl;
   tbl}
 
 getBB:{[tm;s] / Calculate Bollinger Bandas for symbols 's' over time range 'tm', over 'n' periods
@@ -71,7 +61,7 @@ toyEvent:{[tab;row]
 
 /
 \l /data/pmorris/polygon/hdb/us_stocks_sip/
-testTable:getBBands1[2025.09.01 2025.09.30;`JPM`GE`IBM]
+tt:getBBands1[2025.09.01 2025.09.30;`JPM`GE`IBM]
 a:select from T where date within 2025.09.01 2025.09.30,sym in `JPM`GE`IBM;
 
 TOY SYSTEM:
