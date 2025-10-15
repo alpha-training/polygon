@@ -93,3 +93,19 @@ dema:{[x;n]
   (2f * ema1) - ema2  / combine
 
 }
+
+/
+
+Kieran Feedback
+
+in simple strat, the way you build strat1 is not the recommended way
+
+Instead of setting a global variable, better to create a local variable and amend it on each line
+
+e.g. 
+
+a:select from ...
+a:upadate col1:...
+a:update col2:func col1 etc
+
+I also suspect that you are not doing by sym
