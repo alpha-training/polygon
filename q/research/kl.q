@@ -40,7 +40,7 @@ checkRow:{[price;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_
  }
 
 runPerSym:{[price;j;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]
-  flip`I`exiting`entryPx`order`pos`note!flip checkRow[price;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]\[(j;0b;price j;entry j;0;`)]
+  flip`I`exiting`entryPx`order`opos`note!flip checkRow[price;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]\[(j;0b;price j;entry j;0;`)]
   }
 
 run:{[a]
@@ -52,9 +52,9 @@ run:{[a]
   a:update next_enter:rfills enterI,next_exit_long:rfills ?[exit_long;I;0N],next_exit_short:rfills ?[exit_short;I;0N] by sym from a;
   rs:exec runPerSym[price;enter?1b;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]by sym from a;
   r:DROP_COLS a lj 2!raze{[rs;s]`sym`I xcols update sym:s from rs s}[rs]each key rs;
-  r:update fills entryPx,rpos:fills pos+order by sym from r;
-  r:update upnl:abs[rpos]*-1 1[rpos>0]*price-entryPx from r where null note,rpos<>0;
-  update rpnl:pos*price-entryPx from r where not null note
+  r:update fills entryPx,npos:fills opos+order by sym from r;
+  r:update upnl:abs[npos]*-1 1[npos>0]*price-entryPx from r where null note,npos<>0;
+  update rpnl:opos*price-entryPx from r where not null note
  }
 
 \ts nbar:run bar
