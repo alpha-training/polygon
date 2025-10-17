@@ -15,14 +15,13 @@ bar:([]sym:S;time:09:30:00.0+til N;price:PX[S]+.01*N?10;size:N?100*1+til 20;ente
 
 .u.J:SYMS!count[SYMS]#0
 
-checkRow:{[price;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short;x]
+checkRow:{[price;entry;next_enter;next_exit_long;next_exit_short;x]
  j:x 0;
- exiting:x 1;
  entryPx:x 2;
  order:x 3;
- state:signum position:x 4;
+ position:x 4;
  note:x 5;
- if[exiting;  / if exiting
+ if[x 1;  / if exiting
    if[null en:next_enter j;:x];
    if[en=j;if[null en:next_enter j+1;:x]];
    order:entry en;
@@ -39,8 +38,8 @@ checkRow:{[price;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_
  (ex;1b;entryPx;neg newPos;newPos;`sig)
  }
 
-runPerSym:{[price;j;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]
-  flip`I`exiting`entryPx`order`opos`note!flip checkRow[price;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]\[(j;0b;price j;entry j;0;`)]
+runPerSym:{[price;j;entry;next_enter;next_exit_long;next_exit_short]
+  flip`I`exiting`entryPx`order`opos`note!flip checkRow[price;entry;next_enter;next_exit_long;next_exit_short]\[(j;0b;price j;entry j;0;`)]
   }
 
 run:{[a]
@@ -49,8 +48,8 @@ run:{[a]
   a:update enter_long:0b,enter_short:0b from a where enter_long,enter_short;
   a:update I:-1+sums i=i by sym from a;
   a:update enter:1b,enterI:I,entry:sizeOrder[size]*-1 1 enter_long from a where enter_long|enter_short;
-  a:update next_enter:rfills enterI,next_exit_long:rfills ?[exit_long;I;0N],next_exit_short:rfills ?[exit_short;I;0N] by sym from a;
-  rs:exec runPerSym[price;enter?1b;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]by sym from a;
+  a:update next_enter:rfills enterI,next_exit_long:rfills ?[exit_long;I;0N],next_exit_short:rfills ?[exit_short;I;0N]by sym from a;
+  rs:exec runPerSym[price;enter?1b;entry;next_enter;next_exit_long;next_exit_short]by sym from a;
   r:DROP_COLS a lj 2!raze{[rs;s]`sym`I xcols update sym:s from rs s}[rs]each key rs;
   r:update fills entryPx,npos:fills opos+order by sym from r;
   r:update upnl:abs[npos]*-1 1[npos>0]*price-entryPx from r where null note,npos<>0;
