@@ -1,41 +1,61 @@
 / Generalised script to manage signals
-\c 30 145
+\c 30 180
 rfills:reverse fills reverse@
 N:1000000
 SYMS:`AAPL`BP`IBM
 PX:SYMS!25.00 47.20 87.34
 S:N?SYMS
-bar:([]sym:S;time:09:30:00.0+til N;price:PX[S]+N#sums(N#-3 1 2 -2 3 5 2 1 4)%100;enterSig:N#00001010000001001b;exitSig:N#01001000b;size:N?100*1+til 20)
-update autoExit:1b from `bar where i>N-300;
-update enterSig:0b from`bar where exitSig|autoExit;
-show meta update I:-1+sums i=i by sym from `bar;
-update enterI:I,side:{rand -1 1}each i from `bar where enterSig,not exitSig;
-update exitI:I from `bar where exitSig;
-update nextEnter:rfills enterI,nextExit:rfills exitI by sym from `bar;
-update nextEnter:next nextEnter by sym from`bar where nextEnter=enterI;
+sizeOrder:7h$.1*
 
-PNL:.07
-pnlf1:{[en;ex] PNL<=ex-en}
+DROP_COLS:`enterI`entry`next_enter`next_exit_long`next_exit_short`exiting _
+PNL:.03
+pnlf:{[long;en;ex] PNL<=$[long;ex-en;en-ex]}
 
-/ CK:`I`existing`enterPrice`action
-check:{[s;pnlf;exitSig;px;nextEnter;nextExit;x]
- j:x 0;enterPx:x 1;
- if[x 2;  / if exiting
-   if[null en:nextEnter j;:x];
-   :(en;px en;0b;`enter)];
- if[exitSig j;:(j;enterPx;1b;`sig)];
- if[null ex:nextExit j;:x];
- if[min pnlExits:pnlf[enterPx;px w:j+1+til ex-j];
-  :(w pnlExits?1b;enterPx;1b;`pnl)];
- (ex;enterPx;1b;`sig)
+bar:([]sym:S;time:09:30:00.0+til N;price:PX[S]+.01*N?10;size:N?100*1+til 20;enter_long:N?00001b;exit_long:N?00001b;enter_short:N?00001b;exit_short:N?00001b)
+
+.u.J:SYMS!count[SYMS]#0
+
+checkRow:{[price;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short;x]
+ j:x 0;
+ exiting:x 1;
+ entryPx:x 2;
+ order:x 3;
+ state:signum position:x 4;
+ note:x 5;
+ if[exiting;  / if exiting
+   if[null en:next_enter j;:x];
+   if[en=j;if[null en:next_enter j+1;:x]];
+   order:entry en;
+   :(en;0b;price en;order;0;`)];
+  newPos:position+order;
+  exl:exs:0N;
+  if[long:1h=newState:signum newPos;
+    if[null exl:next_exit_long j;:x]];
+  if[not long;
+    if[null exs:next_exit_short j;:x]];
+ ex:(exs;exl)long;  / index of the next exit
+ if[count[pnlExits]>w1:(pnlExits:pnlf[long;entryPx;price w:j+1+til ex-j])?1b;
+   :(w w1;1b;entryPx;neg newPos;newPos;`pnl)];
+ (ex;1b;entryPx;neg newPos;newPos;`sig)
  }
 
-run:{[s;pnlf;exitSig;px;nextEnter;nextExit;enterSig]
-  j:enterSig?1b;
-  r:flip`I`enterPx`exiting`action!flip check[s;pnlf1;exitSig;px;nextEnter;nextExit]\[(j;px j;0b;`enter)];
-  update sym:s from r
+runPerSym:{[price;j;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]
+  flip`I`exiting`entryPx`order`pos`note!flip checkRow[price;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]\[(j;0b;price j;entry j;0;`)]
   }
 
-\ts r:raze get exec run[first sym;pnlf1;exitSig;price;nextEnter;nextExit;enterSig] by sym from bar
+run:{[a]
+  a:update enter_long:0b from a where exit_long;
+  a:update enter_short:0b from a where exit_short;
+  a:update enter_long:0b,enter_short:0b from a where enter_long,enter_short;
+  a:update I:-1+sums i=i by sym from a;
+  a:update enter:1b,enterI:I,entry:sizeOrder[size]*-1 1 enter_long from a where enter_long|enter_short;
+  a:update next_enter:rfills enterI,next_exit_long:rfills ?[exit_long;I;0N],next_exit_short:rfills ?[exit_short;I;0N] by sym from a;
+  rs:exec runPerSym[price;enter?1b;entry;next_enter;exit_long;exit_short;next_exit_long;next_exit_short]by sym from a;
+  r:DROP_COLS a lj 2!raze{[rs;s]`sym`I xcols update sym:s from rs s}[rs]each key rs;
+  r:update fills entryPx,rpos:fills pos+order by sym from r;
+  r:update upnl:abs[rpos]*-1 1[rpos>0]*price-entryPx from r where null note,rpos<>0;
+  update rpnl:pos*price-entryPx from r where not null note
+ }
 
-nbar:bar lj `sym`I xkey r
+\ts nbar:run bar
+aa:select from nbar where sym=`AAPL
