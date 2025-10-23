@@ -1,5 +1,9 @@
 {
-"BB.N": 25,
-"BB.K": 2.0,
-"EOD": "15:35"
+"BB.N": 20,
+"BB.K": 1.0,
+"EOD": "15:35",
+"RSI.N": 5.0,
+"RSI.ENTRY": 40.0,
+"RSI.EXIT": 60.0,
+"VOLUME.ENTRY": 500
 }
